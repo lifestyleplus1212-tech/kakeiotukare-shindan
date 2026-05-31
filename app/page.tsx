@@ -81,7 +81,7 @@ export default function Home() {
             >
               無料で診断する →
             </button>
-            <p style={{ fontSize: 13, color: "#3a7a9c", marginTop: 12, fontWeight: 600 }}>約3分・無料・売り込みなし</p>
+            <p style={{ fontSize: 13, color: "#3a7a9c", marginTop: 12, fontWeight: 600 }}>約90秒・無料・売り込みなし</p>
           </div>
 
           {/* 監修者紹介 */}
