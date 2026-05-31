@@ -148,6 +148,15 @@ function ResultContent() {
     }
   }, []);
 
+  useEffect(() => {
+  if (typeof window !== "undefined" && typeof (window as any).gtag === "function") {
+    (window as any).gtag("event", "shindan_complete", {
+      type_id: typeId,
+      type_name: type.name,
+    });
+  }
+}, []);
+
   const loadingMessages = [
     "あなたの回答を分析しています...",
     "不安のパターンを読み取っています...",
