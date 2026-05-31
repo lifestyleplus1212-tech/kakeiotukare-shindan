@@ -1,6 +1,8 @@
 "use client";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState, useEffect } from "react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 const types = [
   {
@@ -88,6 +90,16 @@ const questionTexts = [
   "正しい情報が多すぎて誰を信じればいいかわからない",
 ];
 
+type ReportData = {
+  s1: string;
+  s2: string;
+  s3: string;
+  s4: string;
+  s5: string;
+  s_fp: string;
+  s6: string;
+};
+
 function determineType(answers: number[]): number {
   const a1 = answers.slice(0, 5).reduce((s, v) => s + v, 0);
   const a2 = answers.slice(5, 10).reduce((s, v) => s + v, 0);
@@ -124,11 +136,9 @@ function ResultContent() {
   const type = types.find((t) => t.id === typeId) ?? types[2];
   const highlights = getHighlightedQuestions(answers);
 
-  const [report, setReport] = useState<string | null>(null);
+  const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
-  const [email, setEmail] = useState("");
-  const [emailSent, setEmailSent] = useState(false);
 
   const paid = params.get("paid");
 
@@ -179,7 +189,7 @@ function ResultContent() {
         body: JSON.stringify({ answers, typeName: type.name, typeShort: type.short }),
       });
       const data = await res.json();
-      setReport(data.report);
+      setReport(data.report as ReportData);
     } catch (e) {
       console.error(e);
       alert("エラーが発生しました。もう一度お試しください。");
@@ -188,6 +198,45 @@ function ResultContent() {
       clearInterval(msgInterval);
     }
   };
+
+  const handleDownloadPDF = async () => {
+    if (!report) return;
+    const element = document.getElementById("report-content");
+    if (!element) return;
+
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#c8e8f5",
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    let y = 0;
+    while (y < imgHeight) {
+      if (y > 0) doc.addPage();
+      doc.addImage(imgData, "PNG", 0, -y, imgWidth, imgHeight);
+      y += pageHeight;
+    }
+
+    doc.save(`家計のお疲れ診断_レポート_${type.name}.pdf`);
+  };
+
+  const sections = report
+    ? [
+      { title: "① タイプの深掘り", icon: "🔍", content: report.s1 },
+      { title: "② 回答パターン分析", icon: "📊", content: report.s2 },
+      { title: "③ 不安の根本原因", icon: "🌱", content: report.s3 },
+      { title: "④ 今すぐやるべきこと", icon: "✅", content: report.s4 },
+      { title: "⑤ 家計の目安・50-30-20ルール", icon: "💡", content: report.s5 },
+      { title: "⑥ 次のステップ", icon: "👣", content: report.s6 },
+    ]
+    : [];
 
   return (
     <div style={{ minHeight: "100svh", background: "#b8dff0", display: "flex", justifyContent: "center" }}>
@@ -266,57 +315,38 @@ function ResultContent() {
             <div style={{ fontSize: 11, color: "#7F77DD", marginBottom: 8, letterSpacing: "0.06em" }}>👤 福田FPより</div>
             <p style={{ fontSize: 13, lineHeight: 1.75, color: "#2e6a88", fontStyle: "italic" }}>{type.fpComment}</p>
           </div>
-          {/* レポートエリア */}
+
+        {/* レポートエリア */}
           {report ? (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 11, color: "#5a9ab8", marginBottom: 12, letterSpacing: "0.06em" }}>📄 あなただけの詳細レポート</div>
-              {(() => {
-                const sectionIcons: { [key: string]: string } = {
-                  "①タイプの深掘り": "🔍",
-                  "②回答パターン分析": "📊",
-                  "③不安の根本原因": "🌱",
-                  "④今すぐやるべきこと": "✅",
-                  "⑤処方箋": "💊",
-                  "⑥次のステップ": "👣",
-                };
+            <>
+              <div id="report-content" style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, color: "#5a9ab8", marginBottom: 12, letterSpacing: "0.06em" }}>📄 あなただけの詳細レポート</div>
 
-                const sections: { title: string; icon: string; lines: string[] }[] = [];
-                let currentTitle = "";
-                let currentIcon = "";
-                let currentLines: string[] = [];
-
-                report.split("\n").forEach((line) => {
-                  const clean = line
-                    .replace(/^#{1,6}\s*/, "")
-                    .replace(/\*\*(.*?)\*\*/g, "$1")
-                    .replace(/\*(.*?)\*/g, "$1")
-                    .trim();
-
-                  const matchedKey = Object.keys(sectionIcons).find((key) => clean.includes(key));
-                  if (matchedKey) {
-                    if (currentTitle) sections.push({ title: currentTitle, icon: currentIcon, lines: currentLines });
-                    currentTitle = clean;
-                    currentIcon = sectionIcons[matchedKey];
-                    currentLines = [];
-                  } else if (clean) {
-                    currentLines.push(clean);
-                  }
-                });
-                if (currentTitle) sections.push({ title: currentTitle, icon: currentIcon, lines: currentLines });
-
-                return sections.map((section, i) => (
+                {sections.map((section, i) => (
                   <div key={i} style={{ background: "rgba(255,255,255,0.72)", borderRadius: 12, padding: "16px", marginBottom: 12, border: "0.5px solid rgba(200,230,245,0.9)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                       <span style={{ fontSize: 18 }}>{section.icon}</span>
                       <span style={{ fontSize: 12, fontWeight: 700, color: "#3a7a9c" }}>{section.title}</span>
                     </div>
-                    {section.lines.map((line, j) => (
-                      <p key={j} style={{ fontSize: 13, lineHeight: 1.75, color: "#2e6a88", marginBottom: j < section.lines.length - 1 ? 6 : 0 }}>{line}</p>
-                    ))}
+                    <p style={{ fontSize: 13, lineHeight: 1.75, color: "#2e6a88" }}>{section.content}</p>
                   </div>
-                ));
-              })()}
-            </div>
+                ))}
+
+                {/* 福田FPより（レポート内） */}
+                <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: 12, padding: "16px", marginBottom: 12, border: "0.5px solid rgba(127,119,221,0.25)" }}>
+                  <div style={{ fontSize: 11, color: "#7F77DD", marginBottom: 8, letterSpacing: "0.06em" }}>👤 福田FPからあなたへ</div>
+                  <p style={{ fontSize: 13, lineHeight: 1.75, color: "#2e6a88", fontStyle: "italic" }}>{report.s_fp}</p>
+                </div>
+              </div>
+
+              {/* PDFダウンロード */}
+              <button
+                onClick={handleDownloadPDF}
+                style={{ width: "100%", padding: "13px", borderRadius: 10, border: "0.5px solid rgba(58,122,156,0.4)", background: "rgba(255,255,255,0.8)", color: "#3a7a9c", fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 12 }}
+              >
+                📥 レポートをPDFで保存する
+              </button>
+            </>
           ) : (
             <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: 12, padding: "16px", marginBottom: 16, border: "0.5px solid rgba(200,230,245,0.9)", position: "relative", overflow: "hidden" }}>
               <div style={{ fontSize: 11, color: "#5a9ab8", marginBottom: 8, letterSpacing: "0.06em" }}>📄 詳細レポート（冒頭）</div>
@@ -324,34 +354,8 @@ function ResultContent() {
               <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 60, background: "linear-gradient(transparent, rgba(240,250,255,0.95))", display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: 10 }}>
                 <span style={{ fontSize: 18 }}>🔒</span>
               </div>
-              <div style={{ height: 30 }} />
-            </div>
-          )}
-
-          {/* メール受け取り */}
-          {report && (
-            <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: 12, padding: "16px", marginBottom: 16, border: "0.5px solid rgba(200,230,245,0.9)" }}>
-              <div style={{ fontSize: 11, color: "#5a9ab8", marginBottom: 8, letterSpacing: "0.06em" }}>📧 レポートをメールで受け取る</div>
-              {emailSent ? (
-                <p style={{ fontSize: 13, color: "#2e6a88" }}>✓ 送信しました！メールをご確認ください。</p>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <input
-                    type="email"
-                    placeholder="メールアドレスを入力"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    style={{ padding: "10px 12px", borderRadius: 8, border: "0.5px solid rgba(180,210,230,0.9)", fontSize: 13, color: "#2e6a88", background: "rgba(255,255,255,0.8)", outline: "none" }}
-                  />
-                  <button
-                    onClick={() => setEmailSent(true)}
-                    style={{ padding: "10px", borderRadius: 8, border: "none", background: "#7F77DD", color: "#fff", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
-                  >
-                    メールで受け取る
-                  </button>
-                </div>
-              )}
-            </div>
+            <div style={{ height: 30 }} />
+          </div>
           )}
 
           {/* もう一度診断する */}
@@ -366,22 +370,24 @@ function ResultContent() {
 
           {/* 出口ボタン */}
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <button
-              onClick={handleCheckout}
-              disabled={loading || !!report}
-              style={{ padding: "14px", borderRadius: 10, border: "none", background: loading || report ? "#aaa" : "#7F77DD", color: "#fff", fontSize: 15, fontWeight: 600, cursor: loading || report ? "not-allowed" : "pointer" }}
-            >
-              {loading ? "レポート生成中..." : report ? "レポート生成済み" : "📄 詳細レポートを読む（500円）"}
-            </button>
+            {!report && (
+              <button
+                onClick={handleCheckout}
+                disabled={loading}
+                style={{ padding: "14px", borderRadius: 10, border: "none", background: loading ? "#aaa" : "#7F77DD", color: "#fff", fontSize: 15, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}
+              >
+                {loading ? "処理中..." : "📄 詳細レポートを読む（500円）"}
+              </button>
+            )}
             {loading && (
               <div style={{ textAlign: "center", marginTop: 16 }}>
                 <style>{`
-      @keyframes float {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-10px); }
-      }
-      .float-icon { animation: float 2s ease-in-out infinite; display: inline-block; }
-    `}</style>
+                  @keyframes float {
+                    0%, 100% { transform: translateY(0px); }
+                    50% { transform: translateY(-10px); }
+                  }
+                  .float-icon { animation: float 2s ease-in-out infinite; display: inline-block; }
+                `}</style>
                 <div className="float-icon" style={{ fontSize: 40, marginBottom: 12 }}>🌤️</div>
                 <p style={{ fontSize: 13, color: "#3a7a9c", lineHeight: 1.75 }}>{loadingMessage}</p>
               </div>
