@@ -71,7 +71,12 @@ export default function Home() {
           {/* CTAボタン */}
           <div style={{ textAlign: "center", marginBottom: 8 }}>
             <button
-              onClick={() => router.push("/shindan")}
+              onClick={() => {
+                if (typeof window !== "undefined" && typeof (window as any).gtag === "function") {
+                  (window as any).gtag("event", "shindan_start");
+                }
+                router.push("/shindan");
+              }}
               style={{ padding: "16px 48px", borderRadius: 50, border: "none", background: "#7F77DD", color: "#fff", fontSize: 16, fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 16px rgba(127,119,221,0.35)" }}
             >
               無料で診断する →
