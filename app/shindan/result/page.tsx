@@ -316,11 +316,11 @@ function ResultContent() {
             <p style={{ fontSize: 13, lineHeight: 1.75, color: "#2e6a88", fontStyle: "italic" }}>{type.fpComment}</p>
           </div>
 
-        {/* レポートエリア */}
+          {/* レポートエリア */}
           {report ? (
             <>
-              <div id="report-content" style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: "#5a9ab8", marginBottom: 12, letterSpacing: "0.06em" }}>📄 あなただけの詳細レポート</div>
+              <div id="report-content" style={{ marginBottom: 16, background: "rgba(30,20,60,0.07)", borderRadius: 16, padding: "20px 16px", border: "1px solid rgba(127,119,221,0.3)" }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#7F77DD", marginBottom: 16, letterSpacing: "0.06em", textAlign: "center" }}>✨ あなただけの詳細レポート</div>
 
                 {sections.map((section, i) => (
                   <div key={i} style={{ background: "rgba(255,255,255,0.72)", borderRadius: 12, padding: "16px", marginBottom: 12, border: "0.5px solid rgba(200,230,245,0.9)" }}>
@@ -354,8 +354,8 @@ function ResultContent() {
               <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 60, background: "linear-gradient(transparent, rgba(240,250,255,0.95))", display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: 10 }}>
                 <span style={{ fontSize: 18 }}>🔒</span>
               </div>
-            <div style={{ height: 30 }} />
-          </div>
+              <div style={{ height: 30 }} />
+            </div>
           )}
 
           {/* もう一度診断する */}
