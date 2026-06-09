@@ -128,6 +128,11 @@ function getHighlightedQuestions(answers: number[]): string[] {
     .map((a) => questionTexts[a.i]);
 }
 
+// LINE友だち追加URL（プロライン）。回答データを free1 に付けて遷移する。
+const LINE_ADD_URL = "https://d9hdqb07.autosns.app/addfriend/s/sdnvAe3mCg/@307wcawl";
+// LINE経由で本文を開放する鍵。あいさつメッセージのURLにも同じ値を設定すること。
+const UNLOCK_KEY = "ln2026_a7k9xq";
+
 function ResultContent() {
   const params = useSearchParams();
   const raw = params.get("a") ?? "";
@@ -141,9 +146,12 @@ function ResultContent() {
   const [loadingMessage, setLoadingMessage] = useState("");
 
   const paid = params.get("paid");
+  const unlock = params.get("unlock");
+  // 本文を開放する条件：500円購入（paid=true）または LINE経由（unlock=鍵）
+  const isUnlocked = paid === "true" || unlock === UNLOCK_KEY;
 
   useEffect(() => {
-    if (paid === "true" && !report) {
+    if (isUnlocked && !report) {
       handleGetReport();
     }
   }, []);
@@ -181,6 +189,12 @@ function ResultContent() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // LINE登録ボタン：回答データを free1 に付けてプロラインの友だち追加URLへ遷移
+  const handleLineRegister = () => {
+    const url = `${LINE_ADD_URL}?free1=${encodeURIComponent(raw)}`;
+    window.location.href = url;
   };
 
   const handleGetReport = async () => {
@@ -380,13 +394,28 @@ function ResultContent() {
           {/* 出口ボタン */}
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {!report && (
-              <button
-                onClick={handleCheckout}
-                disabled={loading}
-                style={{ padding: "14px", borderRadius: 10, border: "none", background: loading ? "#aaa" : "#7F77DD", color: "#fff", fontSize: 15, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}
-              >
-                {loading ? "処理中..." : "📄 詳細レポートを読む（500円）"}
-              </button>
+              <>
+                {/* LINE登録で無料で読む（主役） */}
+                <button
+                  onClick={handleLineRegister}
+                  disabled={loading}
+                  style={{ padding: "16px", borderRadius: 10, border: "none", background: loading ? "#aaa" : "#06C755", color: "#fff", fontSize: 16, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", boxShadow: "0 2px 8px rgba(6,199,85,0.3)" }}
+                >
+                  💬 LINE登録で無料で読む
+                </button>
+                <div style={{ textAlign: "center", fontSize: 11, color: "#5a9ab8", marginTop: -4 }}>
+                  友だち追加するとレポートが届きます（無料）
+                </div>
+
+                {/* 500円で購入（サブ） */}
+                <button
+                  onClick={handleCheckout}
+                  disabled={loading}
+                  style={{ padding: "13px", borderRadius: 10, border: "0.5px solid rgba(127,119,221,0.5)", background: "rgba(255,255,255,0.6)", color: "#7F77DD", fontSize: 14, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}
+                >
+                  {loading ? "処理中..." : "📄 LINEを使わず500円で読む"}
+                </button>
+              </>
             )}
             {loading && (
               <div style={{ textAlign: "center", marginTop: 16 }}>
@@ -405,7 +434,7 @@ function ResultContent() {
               onClick={() => window.open("https://moyasapo.com/", "_blank")}
               style={{ padding: "14px", borderRadius: 10, border: "0.5px solid rgba(180,210,230,0.9)", background: "rgba(255,255,255,0.6)", color: "#3a7a9c", fontSize: 14, cursor: "pointer" }}
             >
-              💬 モヤサポ+を試してみる
+              💬 モヤサポを試してみる
             </button>
             <button
               onClick={() => window.open("https://www.lifestyleplus-fp.com/personal-services/", "_blank")}
