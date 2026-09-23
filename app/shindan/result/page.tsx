@@ -407,6 +407,9 @@ function ResultContent() {
           {/* 説明 */}
           <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: 12, padding: "16px", marginBottom: 16, border: "0.5px solid rgba(200,230,245,0.9)" }}>
             <p style={{ fontSize: 14, lineHeight: 1.75, color: "#2e6a88", whiteSpace: "pre-line" }}>{type.desc}</p>
+            {isSunny && (
+              <p style={{ fontSize: 14, lineHeight: 1.75, color: "#2e6a88", fontWeight: 700, marginTop: 12 }}>詳細レポートによるアドバイスはありません</p>
+            )}
           </div>
 
           {/* 特に気になっていること */}
@@ -449,15 +452,25 @@ function ResultContent() {
           )}
 
           {isSunny ? (
-            /* 「晴れ」：シェアボタンだけを置く */
-            <div style={{ textAlign: "center", marginBottom: 20 }}>
-              <button
-                onClick={handleShare}
-                style={{ padding: "16px", width: "100%", borderRadius: 10, border: "none", background: "#7F77DD", color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 8px rgba(127,119,221,0.35)" }}
-              >
-                📤 この診断をシェアする
-              </button>
-            </div>
+            /* 「晴れ」：もう一度診断する（他タイプと同じ）＋シェアボタン */
+            <>
+              <div style={{ textAlign: "center", marginBottom: 20 }}>
+                <button
+                  onClick={() => window.location.href = "/shindan"}
+                  style={{ background: "none", border: "none", color: "#3a7a9c", fontSize: 13, cursor: "pointer", textDecoration: "underline" }}
+                >
+                  🔄 もう一度診断する
+                </button>
+              </div>
+              <div style={{ textAlign: "center", marginBottom: 20 }}>
+                <button
+                  onClick={handleShare}
+                  style={{ padding: "16px", width: "100%", borderRadius: 10, border: "none", background: "#7F77DD", color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 8px rgba(127,119,221,0.35)" }}
+                >
+                  📤 家計のお疲れ診断を友達にシェアする
+                </button>
+              </div>
+            </>
           ) : (
             <>
               {/* もう一度診断する */}
