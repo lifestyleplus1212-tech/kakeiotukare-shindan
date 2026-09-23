@@ -73,13 +73,13 @@ const types = [
 
 const questionTexts = [
   "収支を把握しているのに不安が消えない",
-  "収入が増えれば解決すると思っている",
+  "急な出費のたびに慌てたり貯金を崩したりする",
   "節約しているのに貯金が増える実感がない",
   "お金の優先順位がわからない",
   "投資・保険の見直しで何から始めるかわからない",
   "家計の問題を先送りにしがちだ",
-  "なんとかなると思いながらなんとかなっていない",
-  "家計管理を始めては挫折したことがある",
+  "周りが投資を始めると自分も焦ってしまう",
+  "貯蓄が「余ったらする」になっていて決まった額を貯められない",
   "お金の不安を相談できる人がいない",
   "FP相談の敷居が高くて動けていない",
   "家計を気にしているのは自分だけだと感じる",
@@ -100,23 +100,52 @@ type ReportData = {
   s6: string;
 };
 
+// ===== タイプ判定のしきい値・優先順位（ここを変更すれば判定基準を調整できます） =====
+// 16問の合計点がこの値以下、かつ下のSUNNY_MAX_SINGLE_ANSWER以上の回答が1つもなければ「晴れ」を返す
+const SUNNY_TOTAL_THRESHOLD = 32;
+// 1問でもこの値以上の回答があれば「晴れ」の対象外にする
+const SUNNY_MAX_SINGLE_ANSWER = 4;
+// 8タイプの点数が全てこの値未満なら「曇りでどんより」を返す
+const CLOUDY_FALLBACK_MAX = 7;
+// 同点のときに優先されるタイプの順（配列の前にあるものが優先）
+const TIE_BREAK_ORDER = [2, 5, 8, 4, 1, 7, 6, 3];
+// 「晴れ」を表す内部ID（typesリストの8タイプとは別枠の特別な結果）
+const SUNNY_TYPE_ID = 0;
+// 「晴れ」の表示内容（8タイプとは別枠。詳細レポート・LINE登録・出口ボタンは出さない）
+const SUNNY_TYPE = {
+  id: SUNNY_TYPE_ID,
+  icon: "☀️",
+  name: "晴れ",
+  short: "見通しよく歩けています",
+  desc: "今のあなたの家計に、大きな疲れは見当たりません。ご自身のやり方が、うまく回っている証拠です。\n\nただ、天気は変わるものです。転職、出産、住まい、親のこと。空模様が変わりそうだなと感じたら、またこの診断を思い出してください。",
+  fpComment: "晴れている方にお伝えしたいことは一つだけ。今のやり方を、どうか続けてください。\nそれと、もしよければ周りを少し見渡してみてください。お金のことで疲れていそうな方がいたら、この診断をそっと教えてあげてもらえると嬉しいです。",
+};
+// 各タイプの点数を計算する担当2問（0始まりのインデックス = Q番号-1）
+const TYPE_QUESTION_PAIRS: Record<number, [number, number]> = {
+  1: [3, 4], // 霧で見えない：Q4+Q5
+  2: [8, 12], // 嵐で身動き取れない：Q9+Q13
+  3: [0, 14], // 曇りでどんより：Q1+Q15
+  4: [1, 7], // にわか雨でずぶぬれ：Q2+Q8
+  5: [10, 11], // 台風で大荒れ：Q11+Q12
+  6: [5, 9], // 梅雨でジメジメ：Q6+Q10
+  7: [6, 15], // 雷でフリーズ：Q7+Q16
+  8: [2, 13], // 空梅雨でカラカラ：Q3+Q14
+};
+
 function determineType(answers: number[]): number {
-  const a1 = answers.slice(0, 5).reduce((s, v) => s + v, 0);
-  const a2 = answers.slice(5, 10).reduce((s, v) => s + v, 0);
-  const a3 = answers.slice(10, 16).reduce((s, v) => s + v, 0);
-  const n1 = a1 / 25;
-  const n2 = a2 / 25;
-  const n3 = a3 / 30;
-  if (n2 >= 0.6 && n3 >= 0.6) return 2;
-  if (n3 >= 0.7) return 5;
-  if (n2 >= 0.7) return 6;
-  if (n1 >= 0.6 && n2 >= 0.6) return 7;
-  if (n1 >= 0.6) {
-    if (answers[2] >= 4) return 8;
-    if (answers[3] >= 4) return 1;
-    return 4;
+  const total = answers.reduce((s, v) => s + v, 0);
+  const hasHighSingleAnswer = answers.some((v) => v >= SUNNY_MAX_SINGLE_ANSWER);
+  if (total <= SUNNY_TOTAL_THRESHOLD && !hasHighSingleAnswer) return SUNNY_TYPE_ID;
+
+  const scores: Record<number, number> = {};
+  for (const [id, [i, j]] of Object.entries(TYPE_QUESTION_PAIRS)) {
+    scores[Number(id)] = answers[i] + answers[j];
   }
-  return 3;
+
+  const maxScore = Math.max(...Object.values(scores));
+  if (maxScore < CLOUDY_FALLBACK_MAX) return 3;
+
+  return TIE_BREAK_ORDER.find((id) => scores[id] === maxScore) ?? 3;
 }
 
 function getHighlightedQuestions(answers: number[]): string[] {
@@ -138,8 +167,9 @@ function ResultContent() {
   const raw = params.get("a") ?? "";
   const answers = raw.split(",").map(Number);
   const typeId = determineType(answers);
-  const type = types.find((t) => t.id === typeId) ?? types[2];
-  const highlights = getHighlightedQuestions(answers);
+  const isSunny = typeId === SUNNY_TYPE_ID;
+  const type = isSunny ? SUNNY_TYPE : types.find((t) => t.id === typeId) ?? types[2];
+  const highlights = isSunny ? [] : getHighlightedQuestions(answers);
 
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -151,7 +181,7 @@ function ResultContent() {
   const isUnlocked = paid === "true" || unlock === UNLOCK_KEY;
 
   useEffect(() => {
-    if (isUnlocked && !report) {
+    if (!isSunny && isUnlocked && !report) {
       handleGetReport();
     }
   }, []);
@@ -195,6 +225,30 @@ function ResultContent() {
   const handleLineRegister = () => {
     const url = `${LINE_ADD_URL}?free1=${encodeURIComponent(raw)}`;
     window.location.href = url;
+  };
+
+  // 「晴れ」用シェアボタン：診断のトップページのURLをLINEやSNSで共有する
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/`;
+    const shareData = {
+      title: "家計のお疲れ診断",
+      text: "家計のお疲れ診断、あなたもやってみませんか？",
+      url: shareUrl,
+    };
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch {
+        // ユーザーがシェアをキャンセルした場合は何もしない
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      alert("診断のURLをコピーしました。LINEやSNSでシェアしてください。");
+    } catch {
+      alert(shareUrl);
+    }
   };
 
   const handleGetReport = async () => {
@@ -301,46 +355,16 @@ function ResultContent() {
         {/* コンテンツ */}
         <div style={{ flex: 1, padding: "28px 22px 24px", position: "relative", zIndex: 1, overflowY: "auto" }}>
 
-          {/* タイプ発表 */}
-          <div style={{ textAlign: "center", marginBottom: 24 }}>
-            <div style={{ fontSize: 72, marginBottom: 12, lineHeight: 1 }}>{type.icon}</div>
-            <div style={{ fontSize: 11, color: "#5a9ab8", letterSpacing: "0.08em", marginBottom: 6 }}>あなたのタイプは</div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: "#12303f", marginBottom: 6 }}>{type.name}</div>
-            <div style={{ fontSize: 13, color: "#5a9ab8" }}>{type.short}</div>
-          </div>
-
-          {/* 説明 */}
-          <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: 12, padding: "16px", marginBottom: 16, border: "0.5px solid rgba(200,230,245,0.9)" }}>
-            <p style={{ fontSize: 14, lineHeight: 1.75, color: "#2e6a88" }}>{type.desc}</p>
-          </div>
-
-          {/* 特に気になっていること */}
-          {highlights.length > 0 && (
-            <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: 12, padding: "16px", marginBottom: 16, border: "0.5px solid rgba(200,230,245,0.9)" }}>
-              <div style={{ fontSize: 11, color: "#5a9ab8", marginBottom: 10, letterSpacing: "0.06em" }}>📊 特に気になっていること</div>
-              {highlights.map((h, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: i < highlights.length - 1 ? 8 : 0 }}>
-                  <span style={{ fontSize: 12, color: "#7F77DD", fontWeight: 700, marginTop: 1 }}>▶</span>
-                  <p style={{ fontSize: 13, lineHeight: 1.65, color: "#2e6a88" }}>{h}</p>
-                </div>
-              ))}
+          {/* 処理中表示：LINE登録・決済完了から来た人が対象。レポート生成中のみ最上部に表示 */}
+          {!isSunny && isUnlocked && loading && (
+            <div style={{ background: "rgba(127,119,221,0.12)", borderRadius: 12, padding: "24px 16px", marginBottom: 16, border: "0.5px solid rgba(127,119,221,0.3)", textAlign: "center" }}>
+              <div style={{ fontSize: 28, marginBottom: 10 }}>✨</div>
+              <p style={{ fontSize: 15, fontWeight: 700, color: "#7F77DD" }}>あなた専用の詳細レポートを作成中です</p>
             </div>
           )}
 
-          {/* アドバイス */}
-          <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: 12, padding: "16px", marginBottom: 16, border: "0.5px solid rgba(200,230,245,0.9)" }}>
-            <div style={{ fontSize: 11, color: "#5a9ab8", marginBottom: 8, letterSpacing: "0.06em" }}>💡 まず試してほしいこと</div>
-            <p style={{ fontSize: 13, lineHeight: 1.75, color: "#2e6a88" }}>{type.advice}</p>
-          </div>
-
-          {/* 福田FPコメント */}
-          <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: 12, padding: "16px", marginBottom: 16, border: "0.5px solid rgba(127,119,221,0.25)" }}>
-            <div style={{ fontSize: 11, color: "#7F77DD", marginBottom: 8, letterSpacing: "0.06em" }}>👤 福田FPより</div>
-            <p style={{ fontSize: 13, lineHeight: 1.75, color: "#2e6a88", fontStyle: "italic" }}>{type.fpComment}</p>
-          </div>
-
-          {/* レポートエリア */}
-          {report ? (
+          {/* 生成完了後のレポート本文：処理中表示と同じ最上部に表示し、スクロールなしで読めるようにする */}
+          {!isSunny && isUnlocked && report && (
             <>
               <div id="report-content" style={{ marginBottom: 16, background: "rgba(30,20,60,0.07)", borderRadius: 16, padding: "20px 16px", border: "1px solid rgba(127,119,221,0.3)" }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: "#7F77DD", marginBottom: 16, letterSpacing: "0.06em", textAlign: "center" }}>✨ あなただけの詳細レポート</div>
@@ -370,10 +394,53 @@ function ResultContent() {
                 📥 レポートをPDFで保存する
               </button>
             </>
-          ) : (
+          )}
+
+          {/* タイプ発表 */}
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            <div style={{ fontSize: 72, marginBottom: 12, lineHeight: 1 }}>{type.icon}</div>
+            <div style={{ fontSize: 11, color: "#5a9ab8", letterSpacing: "0.08em", marginBottom: 6 }}>あなたのタイプは</div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: "#12303f", marginBottom: 6 }}>{type.name}</div>
+            <div style={{ fontSize: 13, color: "#5a9ab8" }}>{type.short}</div>
+          </div>
+
+          {/* 説明 */}
+          <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: 12, padding: "16px", marginBottom: 16, border: "0.5px solid rgba(200,230,245,0.9)" }}>
+            <p style={{ fontSize: 14, lineHeight: 1.75, color: "#2e6a88", whiteSpace: "pre-line" }}>{type.desc}</p>
+          </div>
+
+          {/* 特に気になっていること */}
+          {!isSunny && highlights.length > 0 && (
+            <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: 12, padding: "16px", marginBottom: 16, border: "0.5px solid rgba(200,230,245,0.9)" }}>
+              <div style={{ fontSize: 11, color: "#5a9ab8", marginBottom: 10, letterSpacing: "0.06em" }}>📊 特に気になっていること</div>
+              {highlights.map((h, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: i < highlights.length - 1 ? 8 : 0 }}>
+                  <span style={{ fontSize: 12, color: "#7F77DD", fontWeight: 700, marginTop: 1 }}>▶</span>
+                  <p style={{ fontSize: 13, lineHeight: 1.65, color: "#2e6a88" }}>{h}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* アドバイス */}
+          {!isSunny && (
+            <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: 12, padding: "16px", marginBottom: 16, border: "0.5px solid rgba(200,230,245,0.9)" }}>
+              <div style={{ fontSize: 11, color: "#5a9ab8", marginBottom: 8, letterSpacing: "0.06em" }}>💡 まず試してほしいこと</div>
+              <p style={{ fontSize: 13, lineHeight: 1.75, color: "#2e6a88" }}>{(type as typeof types[number]).advice}</p>
+            </div>
+          )}
+
+          {/* 福田FPコメント */}
+          <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: 12, padding: "16px", marginBottom: 16, border: "0.5px solid rgba(127,119,221,0.25)" }}>
+            <div style={{ fontSize: 11, color: "#7F77DD", marginBottom: 8, letterSpacing: "0.06em" }}>👤 福田FPより</div>
+            <p style={{ fontSize: 13, lineHeight: 1.75, color: "#2e6a88", fontStyle: "italic", whiteSpace: "pre-line" }}>{type.fpComment}</p>
+          </div>
+
+          {/* レポートエリア（チラ見せ）：レポート未生成のときだけ表示。生成後は最上部に表示される */}
+          {!isSunny && !report && (
             <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: 12, padding: "16px", marginBottom: 16, border: "0.5px solid rgba(200,230,245,0.9)", position: "relative", overflow: "hidden" }}>
               <div style={{ fontSize: 11, color: "#5a9ab8", marginBottom: 8, letterSpacing: "0.06em" }}>📄 詳細レポート（冒頭）</div>
-              <p style={{ fontSize: 13, lineHeight: 1.75, color: "#2e6a88" }}>{type.preview}</p>
+              <p style={{ fontSize: 13, lineHeight: 1.75, color: "#2e6a88" }}>{(type as typeof types[number]).preview}</p>
               <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 60, background: "linear-gradient(transparent, rgba(240,250,255,0.95))", display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: 10 }}>
                 <span style={{ fontSize: 18 }}>🔒</span>
               </div>
@@ -381,68 +448,82 @@ function ResultContent() {
             </div>
           )}
 
-          {/* もう一度診断する */}
-          <div style={{ textAlign: "center", marginBottom: 20 }}>
-            <button
-              onClick={() => window.location.href = "/shindan"}
-              style={{ background: "none", border: "none", color: "#3a7a9c", fontSize: 13, cursor: "pointer", textDecoration: "underline" }}
-            >
-              🔄 もう一度診断する
-            </button>
-          </div>
-
-          {/* 出口ボタン */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {!report && (
-              <>
-                {/* LINE登録で無料で読む（主役） */}
+          {isSunny ? (
+            /* 「晴れ」：シェアボタンだけを置く */
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <button
+                onClick={handleShare}
+                style={{ padding: "16px", width: "100%", borderRadius: 10, border: "none", background: "#7F77DD", color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 8px rgba(127,119,221,0.35)" }}
+              >
+                📤 この診断をシェアする
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* もう一度診断する */}
+              <div style={{ textAlign: "center", marginBottom: 20 }}>
                 <button
-                  onClick={handleLineRegister}
-                  disabled={loading}
-                  style={{ padding: "16px", borderRadius: 10, border: "none", background: loading ? "#aaa" : "#06C755", color: "#fff", fontSize: 16, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", boxShadow: "0 2px 8px rgba(6,199,85,0.3)" }}
+                  onClick={() => window.location.href = "/shindan"}
+                  style={{ background: "none", border: "none", color: "#3a7a9c", fontSize: 13, cursor: "pointer", textDecoration: "underline" }}
                 >
-                  💬 LINE登録で無料で読む
+                  🔄 もう一度診断する
                 </button>
-                <div style={{ textAlign: "center", fontSize: 11, color: "#5a9ab8", marginTop: -4 }}>
-                  友だち追加するとレポートが届きます（無料）
-                </div>
-
-                {/* 500円で購入（サブ） */}
-                <button
-                  onClick={handleCheckout}
-                  disabled={loading}
-                  style={{ padding: "13px", borderRadius: 10, border: "0.5px solid rgba(127,119,221,0.5)", background: "rgba(255,255,255,0.6)", color: "#7F77DD", fontSize: 14, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}
-                >
-                  {loading ? "処理中..." : "📄 LINEを使わず500円で読む"}
-                </button>
-              </>
-            )}
-            {loading && (
-              <div style={{ textAlign: "center", marginTop: 16 }}>
-                <style>{`
-                  @keyframes float {
-                    0%, 100% { transform: translateY(0px); }
-                    50% { transform: translateY(-10px); }
-                  }
-                  .float-icon { animation: float 2s ease-in-out infinite; display: inline-block; }
-                `}</style>
-                <div className="float-icon" style={{ fontSize: 40, marginBottom: 12 }}>🌤️</div>
-                <p style={{ fontSize: 13, color: "#3a7a9c", lineHeight: 1.75 }}>{loadingMessage}</p>
               </div>
-            )}
-            <button
-              onClick={() => window.open("https://moyasapo.com/", "_blank")}
-              style={{ padding: "14px", borderRadius: 10, border: "0.5px solid rgba(180,210,230,0.9)", background: "rgba(255,255,255,0.6)", color: "#3a7a9c", fontSize: 14, cursor: "pointer" }}
-            >
-              💬 モヤサポを試してみる
-            </button>
-            <button
-              onClick={() => window.open("https://www.lifestyleplus-fp.com/personal-services/", "_blank")}
-              style={{ padding: "14px", borderRadius: 10, border: "0.5px solid rgba(180,210,230,0.9)", background: "rgba(255,255,255,0.6)", color: "#3a7a9c", fontSize: 14, cursor: "pointer" }}
-            >
-              👤 FP相談を詳しく見る
-            </button>
-          </div>
+
+              {/* 出口ボタン */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {!report && (
+                  <>
+                    {/* LINE登録で無料で読む（主役） */}
+                    <button
+                      onClick={handleLineRegister}
+                      disabled={loading}
+                      style={{ padding: "16px", borderRadius: 10, border: "none", background: loading ? "#aaa" : "#06C755", color: "#fff", fontSize: 16, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", boxShadow: "0 2px 8px rgba(6,199,85,0.3)" }}
+                    >
+                      💬 LINE登録で無料で読む
+                    </button>
+                    <div style={{ textAlign: "center", fontSize: 11, color: "#5a9ab8", marginTop: -4 }}>
+                      友だち追加するとレポートが届きます（無料）
+                    </div>
+
+                    {/* 500円で購入（サブ） */}
+                    <button
+                      onClick={handleCheckout}
+                      disabled={loading}
+                      style={{ padding: "13px", borderRadius: 10, border: "0.5px solid rgba(127,119,221,0.5)", background: "rgba(255,255,255,0.6)", color: "#7F77DD", fontSize: 14, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}
+                    >
+                      {loading ? "処理中..." : "📄 LINEを使わず500円で読む"}
+                    </button>
+                  </>
+                )}
+                {loading && (
+                  <div style={{ textAlign: "center", marginTop: 16 }}>
+                    <style>{`
+                      @keyframes float {
+                        0%, 100% { transform: translateY(0px); }
+                        50% { transform: translateY(-10px); }
+                      }
+                      .float-icon { animation: float 2s ease-in-out infinite; display: inline-block; }
+                    `}</style>
+                    <div className="float-icon" style={{ fontSize: 40, marginBottom: 12 }}>🌤️</div>
+                    <p style={{ fontSize: 13, color: "#3a7a9c", lineHeight: 1.75 }}>{loadingMessage}</p>
+                  </div>
+                )}
+                <button
+                  onClick={() => window.open("https://moyasapo.com/", "_blank")}
+                  style={{ padding: "14px", borderRadius: 10, border: "0.5px solid rgba(180,210,230,0.9)", background: "rgba(255,255,255,0.6)", color: "#3a7a9c", fontSize: 14, cursor: "pointer" }}
+                >
+                  💬 モヤサポを試してみる
+                </button>
+                <button
+                  onClick={() => window.open("https://www.lifestyleplus-fp.com/personal-services/", "_blank")}
+                  style={{ padding: "14px", borderRadius: 10, border: "0.5px solid rgba(180,210,230,0.9)", background: "rgba(255,255,255,0.6)", color: "#3a7a9c", fontSize: 14, cursor: "pointer" }}
+                >
+                  👤 FP相談を詳しく見る
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
