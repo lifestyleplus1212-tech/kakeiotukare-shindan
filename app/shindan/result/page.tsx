@@ -358,8 +358,16 @@ function ResultContent() {
           {/* 処理中表示：LINE登録・決済完了から来た人が対象。レポート生成中のみ最上部に表示 */}
           {!isSunny && isUnlocked && loading && (
             <div style={{ background: "rgba(127,119,221,0.12)", borderRadius: 12, padding: "24px 16px", marginBottom: 16, border: "0.5px solid rgba(127,119,221,0.3)", textAlign: "center" }}>
-              <div style={{ fontSize: 28, marginBottom: 10 }}>✨</div>
-              <p style={{ fontSize: 15, fontWeight: 700, color: "#7F77DD" }}>あなた専用の詳細レポートを作成中です</p>
+              <style>{`
+                @keyframes float {
+                  0%, 100% { transform: translateY(0px); }
+                  50% { transform: translateY(-10px); }
+                }
+                .float-icon { animation: float 2s ease-in-out infinite; display: inline-block; }
+              `}</style>
+              <div className="float-icon" style={{ fontSize: 40, marginBottom: 12 }}>🌤️</div>
+              <p style={{ fontSize: 15, fontWeight: 700, color: "#7F77DD", marginBottom: 8 }}>あなた専用の詳細レポートを作成中です</p>
+              <p style={{ fontSize: 13, color: "#3a7a9c", lineHeight: 1.75 }}>{loadingMessage}</p>
             </div>
           )}
 
@@ -384,6 +392,10 @@ function ResultContent() {
                   <div style={{ fontSize: 11, color: "#7F77DD", marginBottom: 8, letterSpacing: "0.06em" }}>👤 福田FPからあなたへ</div>
                   <p style={{ fontSize: 13, lineHeight: 1.75, color: "#2e6a88", fontStyle: "italic" }}>{report.s_fp}</p>
                 </div>
+
+                <p style={{ fontSize: 13, lineHeight: 1.75, color: "#2e6a88", textAlign: "center", marginTop: 16, whiteSpace: "pre-line" }}>
+                  {"気になったことがあれば、LINEにそのまま返信してください。\n福田FPが直接読んでお返事します。"}
+                </p>
               </div>
 
               {/* PDFダウンロード */}
@@ -509,7 +521,7 @@ function ResultContent() {
                     </button>
                   </>
                 )}
-                {loading && (
+                {loading && !isUnlocked && (
                   <div style={{ textAlign: "center", marginTop: 16 }}>
                     <style>{`
                       @keyframes float {
