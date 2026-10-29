@@ -501,14 +501,14 @@ function ResultContent() {
                   <>
                     {/* LINEでレポートを受け取る（主役） */}
                     <div style={{ textAlign: "center", fontSize: 13, lineHeight: 1.7, color: "#2e6a88", marginBottom: -4 }}>
-                      LINEで「レポート」と送ると、詳細レポートが無料で届きます📄
+                      LINEで「<span style={{ color: "#06C755", fontWeight: 700 }}>レポート</span>」と送ると、詳細レポートが無料で届きます📄
                     </div>
                     <button
                       onClick={handleLineRegister}
                       disabled={loading}
                       style={{ padding: "16px", borderRadius: 10, border: "none", background: loading ? "#aaa" : "#06C755", color: "#fff", fontSize: 16, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", boxShadow: "0 2px 8px rgba(6,199,85,0.3)" }}
                     >
-                      LINEでレポートを受け取る
+                      LINEで詳細レポートを無料で受け取る
                     </button>
 
                     {/* 500円で購入（サブ） */}
