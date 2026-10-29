@@ -499,17 +499,17 @@ function ResultContent() {
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {!report && (
                   <>
-                    {/* LINE登録で無料で読む（主役） */}
+                    {/* LINEでレポートを受け取る（主役） */}
+                    <div style={{ textAlign: "center", fontSize: 13, lineHeight: 1.7, color: "#2e6a88", marginBottom: -4 }}>
+                      LINEで「レポート」と送ると、詳細レポートが無料で届きます📄
+                    </div>
                     <button
                       onClick={handleLineRegister}
                       disabled={loading}
                       style={{ padding: "16px", borderRadius: 10, border: "none", background: loading ? "#aaa" : "#06C755", color: "#fff", fontSize: 16, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", boxShadow: "0 2px 8px rgba(6,199,85,0.3)" }}
                     >
-                      💬 LINE登録で無料で読む
+                      LINEでレポートを受け取る
                     </button>
-                    <div style={{ textAlign: "center", fontSize: 11, color: "#5a9ab8", marginTop: -4 }}>
-                      友だち追加するとレポートが届きます（無料）
-                    </div>
 
                     {/* 500円で購入（サブ） */}
                     <button
