@@ -199,7 +199,7 @@ function ResultContent() {
     "あなたの回答を分析しています...",
     "不安のパターンを読み取っています...",
     "16問のデータを照らし合わせています...",
-    "福田FPのメソッドと組み合わせています...",
+    "FP福田のメソッドと組み合わせています...",
     "レポートを仕上げています...",
   ];
 
@@ -387,14 +387,14 @@ function ResultContent() {
                   </div>
                 ))}
 
-                {/* 福田FPより（レポート内） */}
+                {/* FP福田より（レポート内） */}
                 <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: 12, padding: "16px", marginBottom: 12, border: "0.5px solid rgba(127,119,221,0.25)" }}>
-                  <div style={{ fontSize: 11, color: "#7F77DD", marginBottom: 8, letterSpacing: "0.06em" }}>👤 福田FPからあなたへ</div>
+                  <div style={{ fontSize: 11, color: "#7F77DD", marginBottom: 8, letterSpacing: "0.06em" }}>👤 FP福田からあなたへ</div>
                   <p style={{ fontSize: 13, lineHeight: 1.75, color: "#2e6a88", fontStyle: "italic" }}>{report.s_fp}</p>
                 </div>
 
                 <p style={{ fontSize: 13, lineHeight: 1.75, color: "#2e6a88", textAlign: "center", marginTop: 16, whiteSpace: "pre-line" }}>
-                  {"気になったことがあれば、LINEにそのまま返信してください。\n福田FPが直接読んでお返事します。"}
+                  {"気になったことがあれば、LINEにそのまま返信してください。\nFP福田が直接読んでお返事します。\n\n天気は、変えられます。\n1か月後に、もう一度チェックしてみてください☀️"}
                 </p>
               </div>
 
@@ -445,9 +445,9 @@ function ResultContent() {
             </div>
           )}
 
-          {/* 福田FPコメント */}
+          {/* FP福田コメント */}
           <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: 12, padding: "16px", marginBottom: 16, border: "0.5px solid rgba(127,119,221,0.25)" }}>
-            <div style={{ fontSize: 11, color: "#7F77DD", marginBottom: 8, letterSpacing: "0.06em" }}>👤 福田FPより</div>
+            <div style={{ fontSize: 11, color: "#7F77DD", marginBottom: 8, letterSpacing: "0.06em" }}>👤 FP福田より</div>
             <p style={{ fontSize: 13, lineHeight: 1.75, color: "#2e6a88", fontStyle: "italic", whiteSpace: "pre-line" }}>{type.fpComment}</p>
           </div>
 
